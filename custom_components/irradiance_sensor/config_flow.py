@@ -241,21 +241,27 @@ class IrradianceSensorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             # Save the collected input for this parameter
             # We map generic fields back to specific keys
             self._collected_params[f"{current_key}_name"] = user_input.get("name")
-            self._collected_params[f"{current_key}_addr"] = user_input.get("addr")
-            self._collected_params[f"{current_key}_gain"] = user_input.get("gain")
-            self._collected_params[f"{current_key}_offset"] = user_input.get("offset")
+            # Ensure address is int, others float
+            self._collected_params[f"{current_key}_addr"] = int(user_input.get("addr"))
+            self._collected_params[f"{current_key}_gain"] = float(user_input.get("gain"))
+            self._collected_params[f"{current_key}_offset"] = float(user_input.get("offset"))
             
             # Next parameter
             self._current_param_idx += 1
             return await self.async_step_configure_param()
 
-        # Build schema for this parameter
-        # We use generic names (name, addr, gain, offset) for the form
+        # Build schema for this parameter using Selectors for better UI/Type handling
         schema_dict = {
-            vol.Optional("name", default=current_key.replace("_", " ").title()): str,
-            vol.Optional("addr", default=current_def.get("addr", 0)): int,
-            vol.Optional("gain", default=current_def.get("gain", 1.0)): float,
-            vol.Optional("offset", default=current_def.get("offset", 0.0)): float,
+            vol.Optional("name", default=current_key.replace("_", " ").title()): selector.TextSelector(),
+            vol.Optional("addr", default=current_def.get("addr", 0)): selector.NumberSelector(
+                selector.NumberSelectorConfig(min=0, max=65535, mode=selector.NumberSelectorMode.BOX)
+            ),
+            vol.Optional("gain", default=current_def.get("gain", 1.0)): selector.NumberSelector(
+                selector.NumberSelectorConfig(step="any", mode=selector.NumberSelectorMode.BOX)
+            ),
+            vol.Optional("offset", default=current_def.get("offset", 0.0)): selector.NumberSelector(
+                selector.NumberSelectorConfig(step="any", mode=selector.NumberSelectorMode.BOX)
+            ),
         }
 
         return self.async_show_form(
