@@ -41,6 +41,9 @@ from .const import (
     CONF_MODBUS_ID,
     CONF_SENSOR_MODEL,
     CONF_ENTITY_NAME,
+    CONF_REGISTER_TYPE,
+    REG_TYPE_INPUT,
+    REG_TYPE_HOLDING,
     METHOD_MODBUS_TCP,
     METHOD_RS485,
 )
@@ -141,22 +144,31 @@ class IrradianceDataCoordinator(DataUpdateCoordinator):
              # Run sync modbus call in executor
             def read_modbus():
                 results = {}
-                # Collect addresses we need
-                needed_addrs = []
+                # Collect addresses we need and their types
+                # Use a specific structure to handle same address potentially being used as different types (rare but possible)
+                needed_reads = {} # Key: addr, Value: type
+                
                 for key in SENSOR_TYPES:
                     # Skip if disabled
                     if not self.config.get(f"{key}_enabled", True):
                         continue
                         
                     addr = self.config.get(f"{key}_addr")
+                    # Default to INPUT based on user request/defaults, but fallback to HOLDING if not specified
+                    reg_type = self.config.get(f"{key}_{CONF_REGISTER_TYPE}", REG_TYPE_INPUT)
+                    
                     if addr is not None:
-                        needed_addrs.append(addr)
+                        needed_reads[addr] = reg_type
 
-                for addr in set(needed_addrs): # Use set to avoid duplicates if multiple sensors share addr
+                for addr, reg_type in needed_reads.items():
                     # Read 1 register
-                    rr = self.client.read_holding_registers(address=addr, count=1, slave=slave_id)
+                    if reg_type == REG_TYPE_INPUT:
+                        rr = self.client.read_input_registers(address=addr, count=1, slave=slave_id)
+                    else: # Default or Holding
+                        rr = self.client.read_holding_registers(address=addr, count=1, slave=slave_id)
+                        
                     if rr.isError():
-                        _LOGGER.warning(f"Error reading address {addr}: {rr}")
+                        _LOGGER.warning(f"Error reading address {addr} (Type: {reg_type}): {rr}")
                         results[addr] = None
                     else:
                         results[addr] = rr.registers[0]

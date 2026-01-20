@@ -12,6 +12,11 @@ CONF_SENSOR_MODEL = "sensor_model"
 CONF_SAVE_TEMPLATE = "save_template"
 CONF_TEMPLATE_NAME = "template_name"
 CONF_ENTITY_NAME = "entity_name"
+CONF_REGISTER_TYPE = "register_type"
+
+REG_TYPE_HOLDING = "holding"
+REG_TYPE_INPUT = "input"
+
 
 METHOD_MODBUS_TCP = "Modbus TCP"
 METHOD_RS485 = "RS485"
@@ -28,40 +33,27 @@ SENSOR_TYPES = {
         "unit": "W/m²",
         "device_class": "irradiance",
         "default_addr": 0,
-        "default_gain": 1.0,
+        "default_gain": 0.1,
         "default_offset": 0.0,
+        "default_type": REG_TYPE_INPUT,
     },
-    "temp_ext": {
-        "name": "External Temperature",
+    "temp_pv": {
+        "name": "PV Module Temperature",
         "unit": "°C",
         "device_class": "temperature",
-        "default_addr": 1,
+        "default_addr": 7,
         "default_gain": 0.1,
         "default_offset": 0.0,
+        "default_type": REG_TYPE_INPUT,
     },
-    "temp_int": {
-        "name": "Internal Temperature",
+    "temp_amb": {
+        "name": "Ambient Temperature",
         "unit": "°C",
         "device_class": "temperature",
-        "default_addr": 2,
+        "default_addr": 8,
         "default_gain": 0.1,
         "default_offset": 0.0,
-    },
-    "wind_v": {
-        "name": "Wind Speed",
-        "unit": "m/s",
-        "device_class": "wind_speed",
-        "default_addr": 3,
-        "default_gain": 0.1,
-        "default_offset": 0.0,
-    },
-    "wind_dir": {
-        "name": "Wind Direction",
-        "unit": "°",
-        "device_class": None, # None for wind direction usually, or specific if available
-        "default_addr": 4,
-        "default_gain": 1.0,
-        "default_offset": 0.0,
+        "default_type": REG_TYPE_INPUT,
     },
 }
 
@@ -70,7 +62,8 @@ DEFAULT_REGISTERS = {
     k: {
         "addr": v["default_addr"], 
         "gain": v["default_gain"], 
-        "offset": v["default_offset"]
+        "offset": v["default_offset"],
+        "type": v["default_type"]
     }
     for k, v in SENSOR_TYPES.items()
 }

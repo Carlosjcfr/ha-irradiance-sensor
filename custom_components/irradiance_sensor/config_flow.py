@@ -24,7 +24,11 @@ from .const import (
     METHOD_MODBUS_TCP,
     METHOD_RS485,
     MODEL_CUSTOM,
+    MODEL_CUSTOM,
     DEFAULT_REGISTERS,
+    CONF_REGISTER_TYPE,
+    REG_TYPE_HOLDING,
+    REG_TYPE_INPUT,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -244,6 +248,7 @@ class IrradianceSensorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             # Save the collected input for this parameter
             self._collected_params[f"{current_key}_enabled"] = user_input.get("enabled", True)
             self._collected_params[f"{current_key}_name"] = user_input.get("name")
+            self._collected_params[f"{current_key}_{CONF_REGISTER_TYPE}"] = user_input.get(CONF_REGISTER_TYPE)
             # Ensure address is int, others float
             self._collected_params[f"{current_key}_addr"] = int(user_input.get("addr"))
             self._collected_params[f"{current_key}_gain"] = float(user_input.get("gain"))
@@ -257,6 +262,15 @@ class IrradianceSensorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         schema_dict = {
             vol.Required("enabled", default=is_enabled_default): selector.BooleanSelector(),
             vol.Optional("name", default=current_key.replace("_", " ").title()): selector.TextSelector(),
+            vol.Optional(CONF_REGISTER_TYPE, default=current_def.get("type", REG_TYPE_INPUT)): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=[
+                        {"label": "Input Register (04)", "value": REG_TYPE_INPUT},
+                        {"label": "Holding Register (03)", "value": REG_TYPE_HOLDING},
+                    ],
+                    mode=selector.SelectSelectorMode.DROPDOWN
+                )
+            ),
             vol.Optional("addr", default=current_def.get("addr", 0)): selector.NumberSelector(
                 selector.NumberSelectorConfig(min=0, max=65535, mode=selector.NumberSelectorMode.BOX)
             ),
@@ -289,7 +303,8 @@ class IrradianceSensorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         new_regs[key] = {
                             "addr": self._collected_params.get(f"{key}_addr"),
                             "gain": self._collected_params.get(f"{key}_gain"),
-                            "offset": self._collected_params.get(f"{key}_offset")
+                            "offset": self._collected_params.get(f"{key}_offset"),
+                            "type": self._collected_params.get(f"{key}_{CONF_REGISTER_TYPE}")
                         }
                 
                 await self.hass.async_add_executor_job(
