@@ -22,6 +22,7 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     DataUpdateCoordinator,
@@ -38,6 +39,8 @@ from .const import (
     CONF_SERIAL_PORT,
     CONF_BAUDRATE,
     CONF_MODBUS_ID,
+    CONF_SENSOR_MODEL,
+    CONF_ENTITY_NAME,
     METHOD_MODBUS_TCP,
     METHOD_RS485,
 )
@@ -176,7 +179,7 @@ class IrradianceSensorEntity(CoordinatorEntity, SensorEntity):
         self._entry = entry
         self._key = key
         
-        entity_name_prefix = entry.data.get("entity_name", entry.title)
+        entity_name_prefix = entry.data.get(CONF_ENTITY_NAME, entry.title)
         self._attr_name = f"{entity_name_prefix} {name_suffix}"
         
         self._attr_unique_id = f"{entry.entry_id}_{key}"
@@ -187,6 +190,21 @@ class IrradianceSensorEntity(CoordinatorEntity, SensorEntity):
         self._addr = entry.data.get(f"{key}_addr", 0)
         self._gain = entry.data.get(f"{key}_gain", 1.0)
         self._offset = entry.data.get(f"{key}_offset", 0.0)
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        """Return device information about this entity."""
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._entry.entry_id)},
+            name=self._entry.data.get(CONF_ENTITY_NAME, "Irradiance Sensor"),
+            manufacturer="Custom Integration",
+            model=self._entry.data.get(CONF_SENSOR_MODEL, "Generic"),
+            configuration_url=(
+                f"http://{self._entry.data.get(CONF_IP_ADDRESS)}" 
+                if self._entry.data.get(CONF_CONNECTION_METHOD) == METHOD_MODBUS_TCP 
+                else None
+            ),
+        )
 
     @property
     def native_value(self):
