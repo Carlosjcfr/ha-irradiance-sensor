@@ -40,6 +40,9 @@ class IrradianceSensorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self.templates = []
         self.loaded_templates = {}
         self.selected_method = None
+        self._param_keys = []
+        self._current_param_idx = 0
+        self._collected_params = {}
 
     def _get_templates_path(self):
         """Get path to templates.json."""
@@ -197,19 +200,84 @@ class IrradianceSensorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             _LOGGER.error(f"Error saving template: {e}")
 
     async def async_step_mapping(self, user_input=None):
-        """Handle the third step (Mapping Registers)."""
-        errors = {}
+        """Start the mapping process by initializing the loop over registers."""
+        # Load defaults based on selected model
+        selected_model = self.data.get(CONF_SENSOR_MODEL)
+        
+        # Ensure templates are loaded
+        if not self.loaded_templates:
+            await self.hass.async_add_executor_job(self._load_templates)
+            
+        defaults = DEFAULT_REGISTERS
+        if selected_model in self.loaded_templates:
+            defaults = self.loaded_templates[selected_model]
+            
+        # Prepare the list of parameters to configure
+        self._param_keys = list(DEFAULT_REGISTERS.keys())
+        self._current_param_idx = 0
+        self._collected_params = {}
+        
+        # Store initial defaults to use in the loop
+        self._current_defaults = defaults
+        
+        return await self.async_step_configure_param()
 
+    async def async_step_configure_param(self, user_input=None):
+        """Handle configuration for a single parameter."""
+        errors = {}
+        
+        # Check if we are done
+        if self._current_param_idx >= len(self._param_keys):
+            return await self.async_step_final_config()
+            
+        current_key = self._param_keys[self._current_param_idx]
+        
+        # Get default values for this key
+        # We look in the loaded defaults first, then fallback to hardcoded DEFAULT_REGISTERS
+        def_vals = DEFAULT_REGISTERS.get(current_key, {"addr": 0, "gain": 1.0, "offset": 0.0})
+        current_def = self._current_defaults.get(current_key, def_vals)
+        
         if user_input is not None:
-             # Handle saving template
+            # Save the collected input for this parameter
+            # We map generic fields back to specific keys
+            self._collected_params[f"{current_key}_name"] = user_input.get("name")
+            self._collected_params[f"{current_key}_addr"] = user_input.get("addr")
+            self._collected_params[f"{current_key}_gain"] = user_input.get("gain")
+            self._collected_params[f"{current_key}_offset"] = user_input.get("offset")
+            
+            # Next parameter
+            self._current_param_idx += 1
+            return await self.async_step_configure_param()
+
+        # Build schema for this parameter
+        # We use generic names (name, addr, gain, offset) for the form
+        schema_dict = {
+            vol.Optional("name", default=current_key.replace("_", " ").title()): str,
+            vol.Optional("addr", default=current_def.get("addr", 0)): int,
+            vol.Optional("gain", default=current_def.get("gain", 1.0)): float,
+            vol.Optional("offset", default=current_def.get("offset", 0.0)): float,
+        }
+
+        return self.async_show_form(
+            step_id="configure_param",
+            data_schema=vol.Schema(schema_dict),
+            description_placeholders={"param_name": current_key.replace("_", " ").title()},
+            errors=errors
+        )
+
+    async def async_step_final_config(self, user_input=None):
+        """Final step to set entity name and save template."""
+        errors = {}
+        
+        if user_input is not None:
+            # Handle saving template if requested
             if user_input.get("save_as_template") and user_input.get(CONF_TEMPLATE_NAME):
-                 # Construct registers dict from input
                 new_regs = {}
-                for key in DEFAULT_REGISTERS:
+                for key in self._param_keys:
                     new_regs[key] = {
-                        "addr": user_input.get(f"{key}_addr"),
-                        "gain": user_input.get(f"{key}_gain"),
-                        "offset": user_input.get(f"{key}_offset")
+                        "addr": self._collected_params.get(f"{key}_addr"),
+                        "gain": self._collected_params.get(f"{key}_gain"),
+                        "offset": self._collected_params.get(f"{key}_offset")
                     }
                 
                 await self.hass.async_add_executor_job(
@@ -218,41 +286,22 @@ class IrradianceSensorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     new_regs
                 )
 
-            final_data = {**self.data, **user_input}
+            # Merge all data
+            final_data = {**self.data, **self._collected_params, **user_input}
             return self.async_create_entry(
                 title=final_data.get(CONF_ENTITY_NAME, "Irradiance Sensor"), 
                 data=final_data
             )
 
-        # Pre-fill defaults
-        selected_model = self.data.get(CONF_SENSOR_MODEL)
-        
-        # Determine defaults to show
-        defaults = DEFAULT_REGISTERS
-        
-        if selected_model in self.loaded_templates:
-            defaults = self.loaded_templates[selected_model]
-        else:
-            await self.hass.async_add_executor_job(self._load_templates)
-            if selected_model in self.loaded_templates:
-                defaults = self.loaded_templates[selected_model]
-
-        schema_dict = {}
-        entity_name_default = selected_model
-        schema_dict[vol.Required(CONF_ENTITY_NAME, default=entity_name_default)] = str
-
-        for key, def_vals in DEFAULT_REGISTERS.items():
-            current_def = defaults.get(key, def_vals)
-            
-            schema_dict[vol.Required(f"{key}_addr", default=current_def.get("addr", def_vals["addr"]))] = int
-            schema_dict[vol.Required(f"{key}_gain", default=current_def.get("gain", def_vals["gain"]))] = float
-            schema_dict[vol.Required(f"{key}_offset", default=current_def.get("offset", def_vals["offset"]))] = float
-
-        schema_dict[vol.Optional("save_as_template", default=False)] = bool
-        schema_dict[vol.Optional(CONF_TEMPLATE_NAME)] = str
+        # Schema for final options
+        schema_dict = {
+            vol.Optional(CONF_ENTITY_NAME, default=self.data.get(CONF_SENSOR_MODEL, "Irradiance Sensor")): str,
+            vol.Optional("save_as_template", default=False): bool,
+            vol.Optional(CONF_TEMPLATE_NAME): str,
+        }
 
         return self.async_show_form(
-            step_id="mapping", 
+            step_id="final_config", 
             data_schema=vol.Schema(schema_dict), 
             errors=errors
         )
