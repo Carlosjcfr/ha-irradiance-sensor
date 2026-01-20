@@ -28,6 +28,7 @@ from .const import (
     DEFAULT_REGISTERS,
     MODEL_CUSTOM,
     DEFAULT_REGISTERS,
+    SENSOR_TYPES,
     CONF_REGISTER_TYPE,
     CONF_ROW_UNIQUE_ID,
     REG_TYPE_HOLDING,
@@ -135,7 +136,7 @@ class IrradianceSensorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             if not errors:
                 self.data.update(user_input)
-                return await self.async_step_mapping()
+                return await self.async_step_select_sensors()
 
         # Build schema dynamically
         schema_dict = {}
@@ -206,8 +207,10 @@ class IrradianceSensorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         except Exception as e:
             _LOGGER.error(f"Error saving template: {e}")
 
-    async def async_step_mapping(self, user_input=None):
-        """Start the mapping process by initializing the loop over registers."""
+    async def async_step_select_sensors(self, user_input=None):
+        """Allow user to select which sensors to configure."""
+        errors = {}
+        
         # Load defaults based on selected model
         selected_model = self.data.get(CONF_SENSOR_MODEL)
         
@@ -219,15 +222,46 @@ class IrradianceSensorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if selected_model in self.loaded_templates:
             defaults = self.loaded_templates[selected_model]
             
-        # Prepare the list of parameters to configure
-        self._param_keys = list(DEFAULT_REGISTERS.keys())
-        self._current_param_idx = 0
-        self._collected_params = {}
-        
-        # Store initial defaults to use in the loop
-        self._current_defaults = defaults
-        
-        return await self.async_step_configure_param()
+        if user_input is not None:
+            self._param_keys = user_input.get("selected_sensors", [])
+            self._current_param_idx = 0
+            self._collected_params = {}
+            self._current_defaults = defaults
+            
+            # Pre-fill 'enabled' as True for all selected
+            for k in self._param_keys:
+                 self._collected_params[f"{k}_enabled"] = True
+                 
+            if not self._param_keys:
+                return await self.async_step_final_config()
+                
+            return await self.async_step_configure_param()
+            
+        # Build options for selector
+        available_keys = list(defaults.keys())
+        options_list = []
+        for key in available_keys:
+            # Try to find friendly name
+            name = key.replace("_", " ").title()
+            if key in SENSOR_TYPES:
+                name = SENSOR_TYPES[key].get("name", name)
+            
+            options_list.append({"value": key, "label": name})
+            
+        # Select all by default
+        schema = vol.Schema({
+            vol.Required("selected_sensors", default=available_keys): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=options_list,
+                    mode=selector.SelectSelectorMode.LIST,
+                    multiple=True
+                )
+            )
+        })
+
+        return self.async_show_form(
+            step_id="select_sensors", data_schema=schema, errors=errors
+        )
 
     async def async_step_configure_param(self, user_input=None):
         """Handle configuration for a single parameter."""
@@ -249,7 +283,7 @@ class IrradianceSensorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         
         if user_input is not None:
             # Save the collected input for this parameter
-            self._collected_params[f"{current_key}_enabled"] = user_input.get("enabled", True)
+            self._collected_params[f"{current_key}_enabled"] = True
             self._collected_params[f"{current_key}_name"] = user_input.get("name")
             self._collected_params[f"{current_key}_{CONF_ROW_UNIQUE_ID}"] = user_input.get(CONF_ROW_UNIQUE_ID)
             self._collected_params[f"{current_key}_{CONF_REGISTER_TYPE}"] = user_input.get(CONF_REGISTER_TYPE)
@@ -264,7 +298,7 @@ class IrradianceSensorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         # Build schema for this parameter using Selectors for better UI/Type handling
         schema_dict = {
-            vol.Required("enabled", default=is_enabled_default): selector.BooleanSelector(),
+            # Enabled field removed as selection happened in previous step
             vol.Optional("name", default=current_key.replace("_", " ").title()): selector.TextSelector(),
             vol.Optional(CONF_ROW_UNIQUE_ID, default=current_def.get("unique_id", f"{current_key}_modbus")): selector.TextSelector(),
             vol.Optional(CONF_REGISTER_TYPE, default=current_def.get("type", REG_TYPE_INPUT)): selector.SelectSelector(
