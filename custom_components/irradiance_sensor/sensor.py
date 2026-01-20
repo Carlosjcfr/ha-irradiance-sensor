@@ -78,16 +78,33 @@ async def async_setup_entry(
             device_class
         )
 
-    for key, type_def in SENSOR_TYPES.items():
-        # Check if enabled (default to True for legacy configs)
-        if not entry.data.get(f"{key}_enabled", True):
-            continue
-            
+    # Identify enabled sensors from config
+    enabled_sensors = []
+    
+    # Iterate over all keys in data to find enabled sensors
+    # This supports both standard SENSOR_TYPES and custom ones from templates
+    for key in entry.data:
+        if key.endswith("_enabled") and entry.data[key]:
+             sensor_key = key.replace("_enabled", "")
+             enabled_sensors.append(sensor_key)
+
+    for key in enabled_sensors:
+        # Get defaults from SENSOR_TYPES if available
+        type_def = SENSOR_TYPES.get(key, {})
+        
+        # Determine Name: Configured name > Type default > Key name
+        default_name = type_def.get("name", key.replace("_", " ").title())
+        name = entry.data.get(f"{key}_name", default_name)
+        
+        # Determine Unit/Class
+        unit = type_def.get("unit")
+        device_class = type_def.get("device_class")
+        
         entities.append(create_sensor(
             key, 
-            type_def["name"], 
-            type_def["unit"], 
-            type_def["device_class"]
+            name, 
+            unit, 
+            device_class
         ))
 
     async_add_entities(entities)
@@ -186,14 +203,15 @@ class IrradianceDataCoordinator(DataUpdateCoordinator):
 class IrradianceSensorEntity(CoordinatorEntity, SensorEntity):
     """Representation of an Irradiance Sensor."""
 
+    _attr_has_entity_name = True
+
     def __init__(self, coordinator, entry, key, name_suffix, unit, device_class):
         """Initialize the sensor."""
         super().__init__(coordinator)
         self._entry = entry
         self._key = key
         
-        entity_name_prefix = entry.data.get(CONF_ENTITY_NAME, entry.title)
-        self._attr_name = f"{entity_name_prefix} {name_suffix}"
+        self._attr_name = name_suffix
         
         # Use custom unique_id if provided, otherwise fallback to entry_id based
         custom_uid = entry.data.get(f"{key}_{CONF_ROW_UNIQUE_ID}")
