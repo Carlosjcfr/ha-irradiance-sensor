@@ -1,15 +1,26 @@
 {
+    "error": {
+        "invalid_ip": "Dirección IP inválida",
+        "invalid_port": "El puerto debe estar entre 1 y 65535",
+        "invalid_modbus_id": "El ID Modbus debe estar entre 1 y 247"
+    },
     "step": {
         "user": {
-            "title": "Conexión del Sensor",
-            "description": "Seleccione el método de conexión e introduzca los datos correspondientes. \n\nPara Modbus TCP: IP y Puerto.\nPara RS485: Puerto Serie, Baudrate e ID Modbus.",
+            "title": "Selección de Protocolo",
+            "description": "Seleccione el método de conexión.",
             "data": {
-                "connection_method": "Método de Conexión",
-                "ip_address": "Dirección IP (Solo Modbus TCP)",
+                "connection_method": "Método de Conexión"
+            }
+        },
+        "setup_params": {
+            "title": "Configuración de Parámetros",
+            "description": "Introduzca los detalles de conexión y seleccione el modelo del sensor.",
+            "data": {
+                "ip_address": "Dirección IP",
                 "port": "Puerto TCP (Por defecto 502)",
-                "serial_port": "Puerto Serie (Solo RS485, ej: /dev/ttyUSB0)",
-                "baudrate": "Velocidad en baudios (Solo RS485)",
-                "modbus_id": "ID Modbus / ID Esclavo",
+                "serial_port": "Puerto Serie",
+                "baudrate": "Tasa de Baudios",
+                "modbus_id": "ID Modbus",
                 "sensor_model": "Modelo del Sensor"
             }
         },

@@ -1,14 +1,25 @@
 {
+    "error": {
+        "invalid_ip": "Invalid IP Address",
+        "invalid_port": "Port must be between 1 and 65535",
+        "invalid_modbus_id": "Modbus ID must be between 1 and 247"
+    },
     "step": {
         "user": {
-            "title": "Sensor Connection",
-            "description": "Configure the connection and select the sensor model.",
+            "title": "Protocol Selection",
+            "description": "Select the connection method.",
             "data": {
-                "connection_method": "Connection Method",
-                "ip_address": "IP Address (Modbus TCP)",
+                "connection_method": "Connection Method"
+            }
+        },
+        "setup_params": {
+            "title": "Parameter Configuration",
+            "description": "Enter connection details and select the sensor model.",
+            "data": {
+                "ip_address": "IP Address",
                 "port": "TCP Port",
-                "serial_port": "Serial Port (RS485)",
-                "baudrate": "Baudrate (RS485)",
+                "serial_port": "Serial Port",
+                "baudrate": "Baudrate",
                 "modbus_id": "Modbus ID",
                 "sensor_model": "Sensor Model"
             }

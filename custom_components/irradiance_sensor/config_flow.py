@@ -3,6 +3,8 @@ import logging
 import voluptuous as vol
 import json
 import os
+import ipaddress
+import serial.tools.list_ports
 
 from homeassistant import config_entries
 from homeassistant.core import callback
@@ -37,6 +39,7 @@ class IrradianceSensorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self.data = {}
         self.templates = []
         self.loaded_templates = {}
+        self.selected_method = None
 
     def _get_templates_path(self):
         """Get path to templates.json."""
@@ -63,25 +66,22 @@ class IrradianceSensorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             _LOGGER.error(f"Error loading templates: {e}")
             self.templates = [MODEL_CUSTOM, "Generic Irradiance"]
 
+    def _get_serial_ports(self):
+        """Get list of system serial ports."""
+        try:
+            return [p.device for p in serial.tools.list_ports.comports()]
+        except Exception as e:
+            _LOGGER.error(f"Error listing serial ports: {e}")
+            return []
+
     async def async_step_user(self, user_input=None):
-        """Handle the initial step (Connection)."""
+        """Handle the initial step (Connection Method Selection)."""
         errors = {}
         
-        # Load templates dynamically
-        await self.hass.async_add_executor_job(self._load_templates)
-        
         if user_input is not None:
-            method = user_input.get(CONF_CONNECTION_METHOD)
-            if method == METHOD_MODBUS_TCP:
-                if not user_input.get(CONF_IP_ADDRESS):
-                    errors[CONF_IP_ADDRESS] = "required"
-            elif method == METHOD_RS485:
-                if not user_input.get(CONF_SERIAL_PORT):
-                     errors[CONF_SERIAL_PORT] = "required"
-
-            if not errors:
-                self.data.update(user_input)
-                return await self.async_step_mapping()
+            self.selected_method = user_input[CONF_CONNECTION_METHOD]
+            self.data.update(user_input)
+            return await self.async_step_setup_params()
 
         schema = vol.Schema({
             vol.Required(CONF_CONNECTION_METHOD, default=METHOD_MODBUS_TCP): selector.SelectSelector(
@@ -90,21 +90,82 @@ class IrradianceSensorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     mode=selector.SelectSelectorMode.DROPDOWN
                 )
             ),
-            vol.Optional(CONF_IP_ADDRESS): str,
-            vol.Optional(CONF_PORT, default=502): int,
-            vol.Optional(CONF_SERIAL_PORT): str,
-            vol.Optional(CONF_BAUDRATE, default=9600): int,
-            vol.Optional(CONF_MODBUS_ID, default=1): int,
-            vol.Required(CONF_SENSOR_MODEL, default=self.templates[0] if self.templates else MODEL_CUSTOM): selector.SelectSelector(
-                selector.SelectSelectorConfig(
-                    options=self.templates,
-                    mode=selector.SelectSelectorMode.DROPDOWN
-                )
-            ),
         })
 
         return self.async_show_form(
             step_id="user", data_schema=schema, errors=errors
+        )
+
+    async def async_step_setup_params(self, user_input=None):
+        """Handle the second step (Connection Details & Model)."""
+        errors = {}
+        
+        # Load templates dynamically
+        await self.hass.async_add_executor_job(self._load_templates)
+        
+        if user_input is not None:
+            # Validate input based on method
+            if self.selected_method == METHOD_MODBUS_TCP:
+                ip_addr = user_input.get(CONF_IP_ADDRESS)
+                try:
+                    ipaddress.ip_address(ip_addr)
+                except ValueError:
+                    errors[CONF_IP_ADDRESS] = "invalid_ip"
+                
+                port = user_input.get(CONF_PORT)
+                if not (1 <= port <= 65535):
+                     errors[CONF_PORT] = "invalid_port"
+
+            elif self.selected_method == METHOD_RS485:
+                 pass # Serial port selection is restricted by dropdown, baudrate by dropdown/int
+            
+            modbus_id = user_input.get(CONF_MODBUS_ID)
+            if not (1 <= modbus_id <= 247):
+                 errors[CONF_MODBUS_ID] = "invalid_modbus_id"
+
+            if not errors:
+                self.data.update(user_input)
+                return await self.async_step_mapping()
+
+        # Build schema dynamically
+        schema_dict = {}
+
+        if self.selected_method == METHOD_MODBUS_TCP:
+            schema_dict[vol.Required(CONF_IP_ADDRESS)] = str
+            schema_dict[vol.Required(CONF_PORT, default=502)] = int
+            schema_dict[vol.Required(CONF_MODBUS_ID, default=1)] = int
+
+        elif self.selected_method == METHOD_RS485:
+            # Get ports
+            ports = await self.hass.async_add_executor_job(self._get_serial_ports)
+            if not ports:
+                ports = ["/dev/ttyUSB0", "/dev/ttyS0"] # Fallback manual entry or hint
+
+            schema_dict[vol.Required(CONF_SERIAL_PORT)] = selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=ports,
+                    mode=selector.SelectSelectorMode.DROPDOWN,
+                    custom_value=True # Allow custom if not found
+                )
+            )
+            schema_dict[vol.Required(CONF_BAUDRATE, default=9600)] = selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=["9600", "14400", "19200", "38400", "57600", "115200"],
+                    mode=selector.SelectSelectorMode.DROPDOWN
+                )
+            )
+            schema_dict[vol.Required(CONF_MODBUS_ID, default=1)] = int
+
+        # Common Sensor Model Selection
+        schema_dict[vol.Required(CONF_SENSOR_MODEL, default=self.templates[0] if self.templates else MODEL_CUSTOM)] = selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=self.templates,
+                    mode=selector.SelectSelectorMode.DROPDOWN
+                )
+            )
+
+        return self.async_show_form(
+            step_id="setup_params", data_schema=vol.Schema(schema_dict), errors=errors
         )
 
     def _save_template(self, name, registers):
@@ -133,7 +194,7 @@ class IrradianceSensorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             _LOGGER.error(f"Error saving template: {e}")
 
     async def async_step_mapping(self, user_input=None):
-        """Handle the second step (Mapping Registers)."""
+        """Handle the third step (Mapping Registers)."""
         errors = {}
 
         if user_input is not None:
@@ -193,4 +254,3 @@ class IrradianceSensorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema(schema_dict), 
             errors=errors
         )
-
