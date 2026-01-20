@@ -31,6 +31,7 @@ from homeassistant.helpers.update_coordinator import (
 from .const import (
     DOMAIN,
     DEFAULT_REGISTERS,
+    SENSOR_TYPES,
     CONF_CONNECTION_METHOD,
     CONF_IP_ADDRESS,
     CONF_PORT,
@@ -70,11 +71,17 @@ async def async_setup_entry(
             device_class
         )
 
-    entities.append(create_sensor("irradiance", "Irradiance", UnitOfIrradiance.WATTS_PER_SQUARE_METER, SensorDeviceClass.IRRADIANCE))
-    entities.append(create_sensor("temp_ext", "External Temperature", UnitOfTemperature.CELSIUS, SensorDeviceClass.TEMPERATURE))
-    entities.append(create_sensor("temp_int", "Internal Temperature", UnitOfTemperature.CELSIUS, SensorDeviceClass.TEMPERATURE))
-    entities.append(create_sensor("wind_v", "Wind Speed", UnitOfSpeed.METERS_PER_SECOND, SensorDeviceClass.WIND_SPEED))
-    entities.append(create_sensor("wind_dir", "Wind Direction", DEGREE, None))
+    for key, type_def in SENSOR_TYPES.items():
+        # Check if enabled (default to True for legacy configs)
+        if not entry.data.get(f"{key}_enabled", True):
+            continue
+            
+        entities.append(create_sensor(
+            key, 
+            type_def["name"], 
+            type_def["unit"], 
+            type_def["device_class"]
+        ))
 
     async_add_entities(entities)
 
@@ -133,12 +140,16 @@ class IrradianceDataCoordinator(DataUpdateCoordinator):
                 results = {}
                 # Collect addresses we need
                 needed_addrs = []
-                for key in DEFAULT_REGISTERS:
+                for key in SENSOR_TYPES:
+                    # Skip if disabled
+                    if not self.config.get(f"{key}_enabled", True):
+                        continue
+                        
                     addr = self.config.get(f"{key}_addr")
                     if addr is not None:
                         needed_addrs.append(addr)
 
-                for addr in needed_addrs:
+                for addr in set(needed_addrs): # Use set to avoid duplicates if multiple sensors share addr
                     # Read 1 register
                     rr = self.client.read_holding_registers(address=addr, count=1, slave=slave_id)
                     if rr.isError():

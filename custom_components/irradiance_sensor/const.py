@@ -20,10 +20,57 @@ MODEL_CUSTOM = "Añadir personalizado"
 MODEL_GENERIC = "Generic Irradiance"
 
 # Default registers configuration (Address, Gain, Offset)
+
+# Sensor Definitions with defaults and metadata
+SENSOR_TYPES = {
+    "irradiance": {
+        "name": "Irradiance",
+        "unit": "W/m²",
+        "device_class": "irradiance",
+        "default_addr": 0,
+        "default_gain": 1.0,
+        "default_offset": 0.0,
+    },
+    "temp_ext": {
+        "name": "External Temperature",
+        "unit": "°C",
+        "device_class": "temperature",
+        "default_addr": 1,
+        "default_gain": 0.1,
+        "default_offset": 0.0,
+    },
+    "temp_int": {
+        "name": "Internal Temperature",
+        "unit": "°C",
+        "device_class": "temperature",
+        "default_addr": 2,
+        "default_gain": 0.1,
+        "default_offset": 0.0,
+    },
+    "wind_v": {
+        "name": "Wind Speed",
+        "unit": "m/s",
+        "device_class": "wind_speed",
+        "default_addr": 3,
+        "default_gain": 0.1,
+        "default_offset": 0.0,
+    },
+    "wind_dir": {
+        "name": "Wind Direction",
+        "unit": "°",
+        "device_class": None, # None for wind direction usually, or specific if available
+        "default_addr": 4,
+        "default_gain": 1.0,
+        "default_offset": 0.0,
+    },
+}
+
+# Values for compatibility
 DEFAULT_REGISTERS = {
-    "irradiance": {"addr": 0, "gain": 1.0, "offset": 0.0},
-    "temp_ext": {"addr": 1, "gain": 0.1, "offset": 0.0},
-    "temp_int": {"addr": 2, "gain": 0.1, "offset": 0.0},
-    "wind_v": {"addr": 3, "gain": 0.1, "offset": 0.0},
-    "wind_dir": {"addr": 4, "gain": 1.0, "offset": 0.0},
+    k: {
+        "addr": v["default_addr"], 
+        "gain": v["default_gain"], 
+        "offset": v["default_offset"]
+    }
+    for k, v in SENSOR_TYPES.items()
 }

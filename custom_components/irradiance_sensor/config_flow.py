@@ -235,11 +235,14 @@ class IrradianceSensorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         # Get default values for this key
         # We look in the loaded defaults first, then fallback to hardcoded DEFAULT_REGISTERS
         def_vals = DEFAULT_REGISTERS.get(current_key, {"addr": 0, "gain": 1.0, "offset": 0.0})
+        # If the key is present in the current_defaults (which comes from the template), enable it by default
+        is_enabled_default = current_key in self._current_defaults
+        
         current_def = self._current_defaults.get(current_key, def_vals)
         
         if user_input is not None:
             # Save the collected input for this parameter
-            # We map generic fields back to specific keys
+            self._collected_params[f"{current_key}_enabled"] = user_input.get("enabled", True)
             self._collected_params[f"{current_key}_name"] = user_input.get("name")
             # Ensure address is int, others float
             self._collected_params[f"{current_key}_addr"] = int(user_input.get("addr"))
@@ -252,6 +255,7 @@ class IrradianceSensorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         # Build schema for this parameter using Selectors for better UI/Type handling
         schema_dict = {
+            vol.Required("enabled", default=is_enabled_default): selector.BooleanSelector(),
             vol.Optional("name", default=current_key.replace("_", " ").title()): selector.TextSelector(),
             vol.Optional("addr", default=current_def.get("addr", 0)): selector.NumberSelector(
                 selector.NumberSelectorConfig(min=0, max=65535, mode=selector.NumberSelectorMode.BOX)
@@ -280,11 +284,13 @@ class IrradianceSensorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if user_input.get("save_as_template") and user_input.get(CONF_TEMPLATE_NAME):
                 new_regs = {}
                 for key in self._param_keys:
-                    new_regs[key] = {
-                        "addr": self._collected_params.get(f"{key}_addr"),
-                        "gain": self._collected_params.get(f"{key}_gain"),
-                        "offset": self._collected_params.get(f"{key}_offset")
-                    }
+                    # Only save to template if enabled
+                    if self._collected_params.get(f"{key}_enabled", True):
+                        new_regs[key] = {
+                            "addr": self._collected_params.get(f"{key}_addr"),
+                            "gain": self._collected_params.get(f"{key}_gain"),
+                            "offset": self._collected_params.get(f"{key}_offset")
+                        }
                 
                 await self.hass.async_add_executor_job(
                     self._save_template, 
