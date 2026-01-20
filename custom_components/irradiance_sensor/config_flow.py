@@ -53,7 +53,7 @@ class IrradianceSensorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if os.path.exists(path):
                 with open(path, 'r') as f:
                     data = json.load(f)
-                    self.templates = [MODEL_CUSTOM]
+                    self.templates = []
                     self.loaded_templates = {}
                     for item in data:
                         name = item.get("name")
@@ -61,10 +61,10 @@ class IrradianceSensorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                             self.templates.append(name)
                             self.loaded_templates[name] = item.get("registers", {})
             else:
-                 self.templates = [MODEL_CUSTOM, "Generic Irradiance"]
+                 self.templates = ["Generic Irradiance"]
         except Exception as e:
             _LOGGER.error(f"Error loading templates: {e}")
-            self.templates = [MODEL_CUSTOM, "Generic Irradiance"]
+            self.templates = ["Generic Irradiance"]
 
     def _get_serial_ports(self):
         """Get list of system serial ports."""
@@ -157,7 +157,10 @@ class IrradianceSensorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             schema_dict[vol.Required(CONF_MODBUS_ID, default=1)] = int
 
         # Common Sensor Model Selection
-        schema_dict[vol.Required(CONF_SENSOR_MODEL, default=self.templates[0] if self.templates else MODEL_CUSTOM)] = selector.SelectSelector(
+        # Ensure we have at least one template, defaulting to Generic if list empty (though handled in _load mostly)
+        default_model = self.templates[0] if self.templates else "Generic Irradiance"
+        
+        schema_dict[vol.Required(CONF_SENSOR_MODEL, default=default_model)] = selector.SelectSelector(
                 selector.SelectSelectorConfig(
                     options=self.templates,
                     mode=selector.SelectSelectorMode.DROPDOWN
@@ -227,16 +230,15 @@ class IrradianceSensorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         # Determine defaults to show
         defaults = DEFAULT_REGISTERS
         
-        if selected_model != MODEL_CUSTOM:
+        if selected_model in self.loaded_templates:
+            defaults = self.loaded_templates[selected_model]
+        else:
+            await self.hass.async_add_executor_job(self._load_templates)
             if selected_model in self.loaded_templates:
                 defaults = self.loaded_templates[selected_model]
-            else:
-                await self.hass.async_add_executor_job(self._load_templates)
-                if selected_model in self.loaded_templates:
-                    defaults = self.loaded_templates[selected_model]
 
         schema_dict = {}
-        entity_name_default = selected_model if selected_model != MODEL_CUSTOM else "Irradiance Sensor"
+        entity_name_default = selected_model
         schema_dict[vol.Required(CONF_ENTITY_NAME, default=entity_name_default)] = str
 
         for key, def_vals in DEFAULT_REGISTERS.items():
