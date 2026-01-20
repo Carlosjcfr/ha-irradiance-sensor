@@ -203,14 +203,15 @@ class IrradianceDataCoordinator(DataUpdateCoordinator):
 class IrradianceSensorEntity(CoordinatorEntity, SensorEntity):
     """Representation of an Irradiance Sensor."""
 
+    _attr_has_entity_name = True
+
     def __init__(self, coordinator, entry, key, name_suffix, unit, device_class):
         """Initialize the sensor."""
         super().__init__(coordinator)
         self._entry = entry
         self._key = key
         
-        entity_name_prefix = entry.data.get(CONF_ENTITY_NAME, entry.title)
-        self._attr_name = f"{entity_name_prefix} {name_suffix}"
+        self._attr_name = name_suffix
         
         # Use custom unique_id if provided, otherwise fallback to entry_id based
         custom_uid = entry.data.get(f"{key}_{CONF_ROW_UNIQUE_ID}")
