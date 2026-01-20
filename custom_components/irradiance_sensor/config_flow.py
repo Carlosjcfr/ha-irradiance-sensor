@@ -26,7 +26,10 @@ from .const import (
     MODEL_CUSTOM,
     MODEL_CUSTOM,
     DEFAULT_REGISTERS,
+    MODEL_CUSTOM,
+    DEFAULT_REGISTERS,
     CONF_REGISTER_TYPE,
+    CONF_ROW_UNIQUE_ID,
     REG_TYPE_HOLDING,
     REG_TYPE_INPUT,
 )
@@ -239,8 +242,8 @@ class IrradianceSensorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         # Get default values for this key
         # We look in the loaded defaults first, then fallback to hardcoded DEFAULT_REGISTERS
         def_vals = DEFAULT_REGISTERS.get(current_key, {"addr": 0, "gain": 1.0, "offset": 0.0})
-        # If the key is present in the current_defaults (which comes from the template), enable it by default
-        is_enabled_default = current_key in self._current_defaults
+        # Always enable by default to ensure users see the sensor options checked
+        is_enabled_default = True
         
         current_def = self._current_defaults.get(current_key, def_vals)
         
@@ -248,6 +251,7 @@ class IrradianceSensorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             # Save the collected input for this parameter
             self._collected_params[f"{current_key}_enabled"] = user_input.get("enabled", True)
             self._collected_params[f"{current_key}_name"] = user_input.get("name")
+            self._collected_params[f"{current_key}_{CONF_ROW_UNIQUE_ID}"] = user_input.get(CONF_ROW_UNIQUE_ID)
             self._collected_params[f"{current_key}_{CONF_REGISTER_TYPE}"] = user_input.get(CONF_REGISTER_TYPE)
             # Ensure address is int, others float
             self._collected_params[f"{current_key}_addr"] = int(user_input.get("addr"))
@@ -262,6 +266,7 @@ class IrradianceSensorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         schema_dict = {
             vol.Required("enabled", default=is_enabled_default): selector.BooleanSelector(),
             vol.Optional("name", default=current_key.replace("_", " ").title()): selector.TextSelector(),
+            vol.Optional(CONF_ROW_UNIQUE_ID, default=current_def.get("unique_id", f"{current_key}_modbus")): selector.TextSelector(),
             vol.Optional(CONF_REGISTER_TYPE, default=current_def.get("type", REG_TYPE_INPUT)): selector.SelectSelector(
                 selector.SelectSelectorConfig(
                     options=[
@@ -304,7 +309,8 @@ class IrradianceSensorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                             "addr": self._collected_params.get(f"{key}_addr"),
                             "gain": self._collected_params.get(f"{key}_gain"),
                             "offset": self._collected_params.get(f"{key}_offset"),
-                            "type": self._collected_params.get(f"{key}_{CONF_REGISTER_TYPE}")
+                            "type": self._collected_params.get(f"{key}_{CONF_REGISTER_TYPE}"),
+                            "unique_id": self._collected_params.get(f"{key}_{CONF_ROW_UNIQUE_ID}")
                         }
                 
                 await self.hass.async_add_executor_job(

@@ -42,6 +42,7 @@ from .const import (
     CONF_SENSOR_MODEL,
     CONF_ENTITY_NAME,
     CONF_REGISTER_TYPE,
+    CONF_ROW_UNIQUE_ID,
     REG_TYPE_INPUT,
     REG_TYPE_HOLDING,
     METHOD_MODBUS_TCP,
@@ -194,7 +195,12 @@ class IrradianceSensorEntity(CoordinatorEntity, SensorEntity):
         entity_name_prefix = entry.data.get(CONF_ENTITY_NAME, entry.title)
         self._attr_name = f"{entity_name_prefix} {name_suffix}"
         
-        self._attr_unique_id = f"{entry.entry_id}_{key}"
+        # Use custom unique_id if provided, otherwise fallback to entry_id based
+        custom_uid = entry.data.get(f"{key}_{CONF_ROW_UNIQUE_ID}")
+        if custom_uid:
+             self._attr_unique_id = custom_uid
+        else:
+             self._attr_unique_id = f"{entry.entry_id}_{key}"
         self._attr_native_unit_of_measurement = unit
         self._attr_device_class = device_class
         self._attr_state_class = SensorStateClass.MEASUREMENT

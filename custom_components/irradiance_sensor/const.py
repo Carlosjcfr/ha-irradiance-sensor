@@ -12,6 +12,7 @@ CONF_SENSOR_MODEL = "sensor_model"
 CONF_SAVE_TEMPLATE = "save_template"
 CONF_TEMPLATE_NAME = "template_name"
 CONF_ENTITY_NAME = "entity_name"
+CONF_ROW_UNIQUE_ID = "unique_id"
 CONF_REGISTER_TYPE = "register_type"
 
 REG_TYPE_HOLDING = "holding"
