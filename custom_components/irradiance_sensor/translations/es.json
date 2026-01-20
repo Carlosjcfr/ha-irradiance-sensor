@@ -1,0 +1,41 @@
+{
+    "step": {
+        "user": {
+            "title": "Conexión del Sensor",
+            "description": "Seleccione el método de conexión e introduzca los datos correspondientes. \n\nPara Modbus TCP: IP y Puerto.\nPara RS485: Puerto Serie, Baudrate e ID Modbus.",
+            "data": {
+                "connection_method": "Método de Conexión",
+                "ip_address": "Dirección IP (Solo Modbus TCP)",
+                "port": "Puerto TCP (Por defecto 502)",
+                "serial_port": "Puerto Serie (Solo RS485, ej: /dev/ttyUSB0)",
+                "baudrate": "Velocidad en baudios (Solo RS485)",
+                "modbus_id": "ID Modbus / ID Esclavo",
+                "sensor_model": "Modelo del Sensor"
+            }
+        },
+        "mapping": {
+            "title": "Mapeo de Registros",
+            "description": "Configure los registros Modbus. Valores predeterminados cargados.",
+            "data": {
+                "entity_name": "Nombre de Entidad",
+                "save_as_template": "Guardar como plantilla",
+                "template_name": "Nombre de la plantilla",
+                "irradiance_addr": "Dirección Irradiancia",
+                "irradiance_gain": "Ganancia Irradiancia",
+                "irradiance_offset": "Offset Irradiancia",
+                "temp_ext_addr": "Dirección Temp. Ext",
+                "temp_ext_gain": "Ganancia Temp. Ext",
+                "temp_ext_offset": "Offset Temp. Ext",
+                "temp_int_addr": "Dirección Temp. Int",
+                "temp_int_gain": "Ganancia Temp. Int",
+                "temp_int_offset": "Offset Temp. Int",
+                "wind_v_addr": "Dirección Viento Vel.",
+                "wind_v_gain": "Ganancia Viento Vel.",
+                "wind_v_offset": "Offset Viento Vel.",
+                "wind_dir_addr": "Dirección Viento Dir.",
+                "wind_dir_gain": "Ganancia Viento Dir.",
+                "wind_dir_offset": "Offset Viento Dir."
+            }
+        }
+    }
+}

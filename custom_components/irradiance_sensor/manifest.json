@@ -1,0 +1,12 @@
+{
+    "domain": "irradiance_sensor",
+    "name": "Sensor de Irradiancia",
+    "codeowners": [],
+    "config_flow": true,
+    "documentation": "https://github.com/hacs/integration",
+    "iot_class": "local_polling",
+    "version": "1.0.0",
+    "requirements": [
+        "pymodbus"
+    ]
+}

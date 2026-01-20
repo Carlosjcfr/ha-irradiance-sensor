@@ -1,0 +1,62 @@
+[
+    {
+        "name": "Generic Irradiance",
+        "registers": {
+            "irradiance": {
+                "addr": 0,
+                "gain": 1.0,
+                "offset": 0.0
+            },
+            "temp_ext": {
+                "addr": 1,
+                "gain": 0.1,
+                "offset": 0.0
+            },
+            "temp_int": {
+                "addr": 2,
+                "gain": 0.1,
+                "offset": 0.0
+            },
+            "wind_v": {
+                "addr": 3,
+                "gain": 0.1,
+                "offset": 0.0
+            },
+            "wind_dir": {
+                "addr": 4,
+                "gain": 1.0,
+                "offset": 0.0
+            }
+        }
+    },
+    {
+        "name": "Ingenieurbüro Si-RS485TC-2T-v-MB",
+        "registers": {
+            "irradiance": {
+                "addr": 0,
+                "gain": 1.0,
+                "offset": 0.0
+            },
+            "temp_ext": {
+                "addr": 6,
+                "gain": 0.1,
+                "offset": -50.0
+            },
+            "temp_int": {
+                "addr": 7,
+                "gain": 0.1,
+                "offset": 0.0
+            },
+            "wind_v": {
+                "addr": 12,
+                "gain": 0.1,
+                "offset": 0.0
+            },
+            "wind_dir": {
+                "addr": 14,
+                "gain": 1.0,
+                "offset": 0.0
+            }
+        }
+    }
+]

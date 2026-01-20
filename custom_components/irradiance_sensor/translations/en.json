@@ -1,0 +1,41 @@
+{
+    "step": {
+        "user": {
+            "title": "Sensor Connection",
+            "description": "Configure the connection and select the sensor model.",
+            "data": {
+                "connection_method": "Connection Method",
+                "ip_address": "IP Address (Modbus TCP)",
+                "port": "TCP Port",
+                "serial_port": "Serial Port (RS485)",
+                "baudrate": "Baudrate (RS485)",
+                "modbus_id": "Modbus ID",
+                "sensor_model": "Sensor Model"
+            }
+        },
+        "mapping": {
+            "title": "Register Mapping",
+            "description": "Configure Modbus registers for each variable. Values are pre-filled if a known model was selected.",
+            "data": {
+                "entity_name": "Entity Name",
+                "save_as_template": "Save as template",
+                "template_name": "Template Name",
+                "irradiance_addr": "Irradiance Address",
+                "irradiance_gain": "Irradiance Gain",
+                "irradiance_offset": "Irradiance Offset",
+                "temp_ext_addr": "Ext. Temp Address",
+                "temp_ext_gain": "Ext. Temp Gain",
+                "temp_ext_offset": "Ext. Temp Offset",
+                "temp_int_addr": "Int. Temp Address",
+                "temp_int_gain": "Int. Temp Gain",
+                "temp_int_offset": "Int. Temp Offset",
+                "wind_v_addr": "Wind Speed Address",
+                "wind_v_gain": "Wind Speed Gain",
+                "wind_v_offset": "Wind Speed Offset",
+                "wind_dir_addr": "Wind Dir Address",
+                "wind_dir_gain": "Wind Dir Gain",
+                "wind_dir_offset": "Wind Dir Offset"
+            }
+        }
+    }
+}
